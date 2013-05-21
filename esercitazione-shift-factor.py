@@ -29,7 +29,7 @@ class experimentalDataBlock():
   
   def findSpline(self):
     """trova la spline che passa per tutti i punti sperimentali"""
-    s = UnivariateSpline(self.logScale(self.times), self.logScale(self.modules), k=1, s=0)
+    s = UnivariateSpline(self.times, self.modules, k=1, s=0)
     return s
 
   def borders(self, in_numpy_array):
@@ -52,10 +52,8 @@ class experimentalDataBlock():
     plt.hold('on')
   
   
-  def drawSpline(self, steps=10000):
+  def drawSpline(self, steps=100000):
     x_left, x_right = self.borders(self.times)
-    print(x_left)
-    print(x_right)
     approx_function = self.findSpline()
     x_points = numpy.linspace(x_left, x_right, steps)
     y_interpolated_points = approx_function(x_points)
@@ -104,7 +102,7 @@ buh.drawExperimentalPoints()
 
 for elem in range(len(temps)):
   temps[elem].drawExperimentalPoints()
-
+  temps[elem].drawSpline()
 
 plt.xscale('log')
 plt.yscale('log')
