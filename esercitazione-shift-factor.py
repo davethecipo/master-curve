@@ -23,20 +23,44 @@ class experimentalDataBlock():
     """restituisci i valori in entrata in scala logaritmica"""
     out_array = []
     for i in range(len(in_numpy_array)):
-      out_array[i] = numpy.log(in_numpy_array[i])
+      out_array.append(numpy.log(in_numpy_array[i]))
       
     return out_array
   
   def findSpline(self):
     """trova la spline che passa per tutti i punti sperimentali"""
-    s = UnivariateSpline(logScale(self.times), self.modules, k=0, s=0) 
+    s = UnivariateSpline(self.logScale(self.times), self.logScale(self.modules), k=1, s=0)
+    return s
 
-  def borders(self):
+  def borders(self, in_numpy_array):
     """trova i valori minimo e massimo della grandezza"""
-    self.min = numpy.amin(self.modules)
-    self.max = numpy.amax(self.modules)
+    min = numpy.amin(in_numpy_array)
+    max = numpy.amax(in_numpy_array)
+    return min, max
     
     
+  def __str__(self):
+    print("temperatura della serie di dati: " + str(self.temp))
+    print("tempo [s]  ----> modulo ")
+    for i in range(len(self.modules)):
+      print(str(self.times[i]) + "\t\t" + str(self.modules[i]))
+    # resistuisce errore, il problema potrebbe essere l'ultimo elemento della lista vuoto?!
+
+
+  def drawExperimentalPoints(self):
+    plt.plot(self.times, self.modules, 'bo')
+    plt.hold('on')
+  
+  
+  def drawSpline(self, steps=10000):
+    x_left, x_right = self.borders(self.times)
+    print(x_left)
+    print(x_right)
+    approx_function = self.findSpline()
+    x_points = numpy.linspace(x_left, x_right, steps)
+    y_interpolated_points = approx_function(x_points)
+    plt.plot(x_points, y_interpolated_points)
+    plt.hold('on')
     
 
 def open_from_csv(in_file):
@@ -70,7 +94,18 @@ def open_from_csv(in_file):
   return blocchi_di_dati
 
 temps = open_from_csv('/home/davide/poli/2/2-semestre/polimeri/A/Cedevolezza-PS-es5.txt')
-boh = temps[0]
-pprint(boh.times)
-pprint(boh.modules)
-print(len(temps))
+#boh = temps[0]
+
+#boh.drawExperimentalPoints()
+# è decisamente cannato boh.drawSpline()
+
+buh = temps[1]
+buh.drawExperimentalPoints()
+
+for elem in range(len(temps)):
+  temps[elem].drawExperimentalPoints()
+
+
+plt.xscale('log')
+plt.yscale('log')
+plt.show()
