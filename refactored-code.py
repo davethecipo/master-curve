@@ -10,12 +10,16 @@ from bisect import bisect
 
 
 def approssima(dato, steps=5000):
-  x_left = numpy.amin(dato['tempi'])
-  x_right = numpy.amax(dato['tempi'])
-  spline =  UnivariateSpline(dato['tempi'], dato['moduli'], k=1, s=0)
-  y_min = numpy.amin(dato['moduli']) 
-  y_max = numpy.amax(dato['moduli'])
-  risultati = {'x_scale':(x_left,x_right), 'y_scale':(y_min,y_max),'equation':spline}
+  """ Data una serie di punti sperimentali ad una certa temperatura, calcola 
+      la spezzata che passa per i punti"""
+  tempi = numpy.log10(dato['tempi'])
+  moduli = numpy.log10(dato['moduli'])
+  x_left = numpy.amin(tempi)
+  x_right = numpy.amax(tempi)
+  y_low = numpy.amin(moduli)
+  y_high = numpy.amax(moduli)
+  spline =  UnivariateSpline(tempi, moduli, k=1, s=0) # controllare se serve il logaritmo
+  risultati = {'x_scale':(x_left,x_right), 'y_scale':(y_low, y_high),'equation':spline}
   return risultati
 
 
@@ -39,18 +43,22 @@ def trova_vicino(lista_target, lista_riferimento):
   return indexes
 
 
-""" da riscrivere....  
-def draw(x_left, x_right, draw_steps=500, spline_equation):  
+def draw_points(x,y):
+  plt.plot(x,y, 'bo')
+  plt.hold('on')
+
+  
+def draw_spline(x_left, x_right, spline_equation, draw_steps=100):  
   valori_x_disegno = numpy.linspace(x_left, x_right, draw_steps)
   y_interpolati_disegno = spline_equation(valori_x_disegno)
-  
-  plt.plot(dato['tempi'], dato['moduli'], 'bo')
-  plt.hold('on')
   plt.plot(valori_x_disegno, y_interpolati_disegno)
-  plt.hold('on')
-"""    
+  plt.hold('on')    
 
 def trova_intersezione(intervallo_riferimento, intervallo):
+  """ Permette di trovare i valori comuni fra due intervalli.
+  
+      intervallo_riferimento e intervallo sono entrambi tuple contenenti
+      gli estremi dell'intervallo."""
   min, max = 0,0
   if intervallo_riferimento[0] >= intervallo[0]:
     if intervallo_riferimento[1] <= intervallo[1]:
@@ -98,90 +106,139 @@ def ottieni_informazioni_globali(blocchi_dati):
   maximums = []
   minimums = []
   equations = []
+  estremi_modulo = []
   for elem in range(len(blocchi_dati)):
     risultato = approssima(blocchi_dati[elem])
     maximums.append(risultato['x_scale'][1])
     minimums.append(risultato['x_scale'][0])
     equations.append(risultato['equation'])
-  max_assoluto = numpy.amax(maximums)
-  min_assoluto = numpy.amin(minimums)
+    estremi_modulo.append(risultato['y_scale'])
+  tempo_max = numpy.amax(maximums)
+  tempo_min = numpy.amin(minimums)
+
+  return {'equations':equations, 'tempo_max': tempo_max, 'tempo_min':
+          tempo_min,'estremi_modulo':estremi_modulo}
   
-  return {'equations':equations, 'max_assoluto': max_assoluto, 'min_assoluto':
-          min_assoluto}
+
+
+def calcola_tempi(lista1, lista2, y_min, y_max):
+  """ Restituisce l'indice della lista tale per cui i valori dei tempi 
+      sono relativi ai punti in cui il modulo assume il valore medio
+      rispetto ai valori comuni di modulo.
+      
+      lista1 è relativo ad una temperatura maggiore di lista2
+      """
+  modulo_medio = numpy.around((y_max+y_min)/2, 10) # 10 cifre decimali
+  indice1 = bisect(lista1, modulo_medio)
+  indice2 = bisect(lista2, modulo_medio)
+  return indice1, indice2
   
+  
+
+
+
+
+
+def calcola_a(tempi):
+  """ Calcola lo shift factor sapendo il valore del logaritmo dei tempi"""
+  counter = 0
+  
+  a = [tempi[1]-tempi[0]]
+  for i in range(3, len(tempi), 2):
+    """ attenzione ai segni: questo ciclo ritorna il valore dello shift factor 
+        relativo al passaggio da una temperatura minore ad una maggiore"""
+    #print(tempi[i])
+    a_t = tempi[i]-tempi[i-1]+a[counter]
+    counter += 1
+    a.append(a_t)
+  return a
+  
+  
+def ricava_wlf(shift_factors, temperature):
+  """ Dati i valori sperimentali di shift factor e temperature, ritorna
+      i parametri della WLF"""  
+  x = []
+  y = []
+  for i in range(len(shift_factors)):
+    #print(shift_factors[i])
+    #print(1/numpy.log10(shift_factors[i]))
+    #print(1/(temperature[i+1]-temperature[0]))
+    x.append(1/shift_factors[i]) # abbiamo già contato il logaritmo o no?
+    y.append(1/(temperature[i+1]-temperature[0]))
+    
+  A = numpy.vstack([x, numpy.ones(len(x))]).T
+  m, q = numpy.linalg.lstsq(A, y)[0]
+  return m, q
+  # ricavare A, B della wlf
 
 
 FILE = '/home/davide/poli/2/2-semestre/polimeri/A/Cedevolezza-PS-es5.txt'
+CALC_STEPS = 5000
 
 punti_sperimentali = sorted(open_from_csv(FILE), key=lambda t: t['temperatura']) # mette in ordine crescente di temperatura
 risultati = ottieni_informazioni_globali(punti_sperimentali)
+griglia_x = numpy.linspace(risultati['tempo_min'], risultati['tempo_max'], CALC_STEPS)
+spline_approssimate = [ elem(griglia_x) for elem in risultati['equations'] ]
 
+#pprint(punti_sperimentali[0]['moduli']) # ok
+#pprint(risultati['estremi_modulo'][1][0]) # ok...
+#print(str(len(spline_approssimate[0])) + "lunghezza spline")
 
+calcola_tempi(spline_approssimate[1], spline_approssimate[0], risultati['estremi_modulo'][1][0], risultati['estremi_modulo'][0][1])
 
+tempi = []
+for i in range(1,len(punti_sperimentali)):
+  """ i valori minimo e massimo, che determinano i valori di modulo in comune
+  fra due blocchi di dati, sono facilmente determinabili nel caso in cui
+  si sappia già che i dati nell'array spline_approssimate sono ordinati
+  per temperatura crescente. Per semplicità supponiamo che l'intersezione
+  sia non nulla, bisognerebbe controllare intersezioni vuote onde evitare
+  interruzioni impreviste del programma"""
+  #print(risultati['estremi_modulo'][i][0])
+  #print(risultati['estremi_modulo'][i-1][1])
+  a, b = calcola_tempi(spline_approssimate[i], spline_approssimate[i-1], risultati['estremi_modulo'][i][0], risultati['estremi_modulo'][i-1][1])
+  tempi.append(griglia_x[a])
+  tempi.append(griglia_x[b])
+  
+#pprint(tempi)
+  
+elenco_temperature = [punti_sperimentali[elem]['temperatura'] for elem in range(len(punti_sperimentali)) ]
 
+# pprint(elenco_temperature)
+shift_factor = calcola_a(tempi)
 
+pprint(shift_factor)
+m, q = ricava_wlf(shift_factor, elenco_temperature)
+a = -1/q
+b = -a*m
+  
+print(a)
+print(b)
 
-
-
-
-
-
-riferimento = punti_sperimentali[0] 
-risultati_riferimento = approssima(riferimento)
-
-steps = 5000
-
-
-
-
-def trova_tempi(indici, lista):
-  valori_x = []
-  for i in range(len(indici)):
-    valori_x.append(lista[indici[i]])
-  return valori_x
+for i in range(len(punti_sperimentali)):
+  for elem in range(len(punti_sperimentali[i]['tempi'])):
+    punto_x = numpy.log10(punti_sperimentali[i]['tempi'][elem])
+    punto_y = numpy.log10(punti_sperimentali[i]['moduli'][elem])
+    draw_points(punto_x, punto_y)
+  eq = risultati['equations'][i]
+  xmin = numpy.log10(punti_sperimentali[i]['tempi'][0])
+  xmax = numpy.log10(punti_sperimentali[i]['tempi'][-1])
+  draw_spline(xmin, xmax, eq)
     
- 
+#for point in range(len()):
+  
 
-def regressione(riferimento, target):
-  risultati = approssima(target)
-  min_y, max_y = trova_intersezione(risultati['y_scale'], risultati_riferimento['y_scale']) #risultati_riferimento è una variabile globale, BAD
-  low_index = risultati['spline'].index(min_y) if min_y in risultati['spline'] else None
-  high_index = risultati['spline'].index(max_y) if max_y in risultati['spline'] else None
-  
-   
- helper_calcolo = numpy.linspace(min_y, max_y, steps)
-  indici_target = trova_vicino(risultati, helper_calcolo)
-  indici_riferimento = trova_vicino(dati_riferimento, helper_calcolo) # indice target
-  tempi_target = trova_tempi(indici_target, dati_target)
-  tempi_riferimento = trova_tempi(indici_riferimento, dati_riferimento)
-  a_t = [1/(numpy.log(e[1]/e[0])) for e in zip(tempi_riferimento, tempi_target)]
-  x = [1/(riferimento['temperatura']-target['temperatura']) for elem in a_t]
-  return x, a_t
-  
-  
-punti_x, punti_y = [],[]
 
-for i in range(1,len(asd)):
-  x, y = regressione(riferimento, asd[i])
-  punti_x.append(x)
-  punti_y.append(y)
-  
-  
-# regressione lineare
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
+
+
+
+
+
+
+
+
+
+
+
+plt.show()
