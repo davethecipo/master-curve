@@ -157,17 +157,19 @@ def calcola_a(tempi):
 def ricava_wlf(shift_factors, temperature):
   """ Dati i valori sperimentali di shift factor e temperature, ritorna
       i parametri della WLF"""  
+  y = [1/shift_factors[i] for i in range(len(shift_factors))]
   x = []
-  y = []
-  for i in range(len(shift_factors)):
-    #print(shift_factors[i])
-    #print(1/numpy.log10(shift_factors[i]))
-    #print(1/(temperature[i+1]-temperature[0]))
-    x.append(1/shift_factors[i]) # abbiamo già contato il logaritmo o no?
-    y.append(1/(temperature[i+1]-temperature[0]))
+  for i in range(1, len(temperature)):
+    x.append(1/(temperature[i]-temperature[0]))
     
+  plt.plot(x,y, 'bo')
+  plt.hold('on')
   A = numpy.vstack([x, numpy.ones(len(x))]).T
   m, q = numpy.linalg.lstsq(A, y)[0]
+  x_interp = numpy.linspace(x[0],x[-1],50)
+  y_interp = m*x_interp+q
+  plt.plot(x_interp,y_interp)
+  plt.hold('on')
   return m, q
   # ricavare A, B della wlf
 
@@ -205,17 +207,35 @@ for i in range(1,len(punti_sperimentali)):
 elenco_temperature = [punti_sperimentali[elem]['temperatura'] for elem in range(len(punti_sperimentali)) ]
 
 # pprint(elenco_temperature)
-shift_factor = calcola_a(tempi)
+shift_factor = calcola_a(tempi) # questi sono ricavati sperimentalmente
 
 pprint(shift_factor)
 m, q = ricava_wlf(shift_factor, elenco_temperature)
+print(m)
+print(q)
+
 a = -1/q
 b = -a*m
   
 print(a)
 print(b)
 
-for i in range(len(punti_sperimentali)):
+# adesso provo a ricavare gli shift factor usando la WLF
+
+for i in range(1,len(elenco_temperature)):
+  delta_T = elenco_temperature[i]-elenco_temperature[0]
+  log_a = (a*delta_T)/(b+delta_T)
+  print("teorico da parametri WLF: " + str(log_a))
+
+"""punti_teorici_x = [punti_sperimentali]
+punti_y = numpy.concatenate([punti_sperimentali[i]['tempi'] for i in range(len(punti_sperimentali))])
+for elem in range(len(punti_sperimentali)):
+"""  
+
+
+# grafico sperimentale
+
+"""for i in range(len(punti_sperimentali)):
   for elem in range(len(punti_sperimentali[i]['tempi'])):
     punto_x = numpy.log10(punti_sperimentali[i]['tempi'][elem])
     punto_y = numpy.log10(punti_sperimentali[i]['moduli'][elem])
@@ -224,7 +244,7 @@ for i in range(len(punti_sperimentali)):
   xmin = numpy.log10(punti_sperimentali[i]['tempi'][0])
   xmax = numpy.log10(punti_sperimentali[i]['tempi'][-1])
   draw_spline(xmin, xmax, eq)
-    
+"""    
 #for point in range(len()):
   
 
