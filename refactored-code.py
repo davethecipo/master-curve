@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# -*- coding: latin-1
+# -*- coding: UTF-8
 
 import matplotlib.pyplot as plt
 from scipy.interpolate import UnivariateSpline
@@ -7,6 +7,8 @@ import numpy
 from pprint import pprint
 from bisect import bisect
 
+FILE = '/home/davide/poli/2/2-semestre/polimeri/A/Cedevolezza-PS-es5.txt'
+CALC_STEPS = 5000
 
 def approssima(dato, steps=5000):
   """ Data una serie di punti sperimentali ad una certa temperatura, calcola 
@@ -25,10 +27,10 @@ def draw_points(x,y):
   plt.plot(x,y, 'bo')
   plt.hold('on')
   
-def draw_spline(x_left, x_right, spline_equation, draw_steps=100):  
+def draw_spline(x_left, x_right, spline_equation, in_label, draw_steps=100):  
   valori_x_disegno = numpy.linspace(x_left, x_right, draw_steps)
   y_interpolati_disegno = spline_equation(valori_x_disegno)
-  plt.plot(valori_x_disegno, y_interpolati_disegno)
+  plt.plot(valori_x_disegno, y_interpolati_disegno, label=in_label)
   plt.hold('on')    
 
 def open_from_csv(in_file):
@@ -93,7 +95,7 @@ def calcola_a(tempi):
   a = [tempi[1]-tempi[0]]
   for i in range(3, len(tempi), 2):
     """ attenzione ai segni: questo ciclo ritorna il valore dello shift factor 
-        relativo al passaggio da una temperatura minore ad una maggiore"""
+        relativo al passaggio da una temperatura maggiore ad una minore"""
     a_t = tempi[i]-tempi[i-1]+a[counter]
     counter += 1
     a.append(a_t)
@@ -107,28 +109,27 @@ def ricava_wlf(shift_factors, temperature):
   x = []
   for i in range(1, len(temperature)):
     x.append(1/(temperature[i]-temperature[0]))
-    
-  plt.plot(x,y, 'bo')
-  plt.hold('on')
   A = numpy.vstack([x, numpy.ones(len(x))]).T
   m, q = numpy.linalg.lstsq(A, y)[0]
   x_interp = numpy.linspace(x[0],x[-1],50)
   y_interp = m*x_interp+q
+  
+  plt.subplot(222)
+  plt.title("Regressione lineare (WLF)")
+  plt.xlabel(r"$(T-T_{0})^{-1} \,\, [\degree C^{-1}]$")
+  plt.ylabel(r"$(log(a_{T}^{T_0}))^{-1} \,\, [s^{-1}]$")
+  plt.plot(x,y, 'bo')
+  plt.hold('on')
   plt.plot(x_interp,y_interp)
   plt.hold('on')
+  
   return m, q
-
-FILE = '/home/davide/poli/2/2-semestre/polimeri/A/Cedevolezza-PS-es5.txt'
-CALC_STEPS = 5000
 
 punti_sperimentali = sorted(open_from_csv(FILE), key=lambda t: t['temperatura']) # mette in ordine crescente di temperatura
 risultati = ottieni_informazioni_globali(punti_sperimentali)
 griglia_x = numpy.linspace(risultati['tempo_min'], risultati['tempo_max'], CALC_STEPS)
 spline_approssimate = [ elem(griglia_x) for elem in risultati['equations'] ]
 elenco_temperature = [punti_sperimentali[elem]['temperatura'] for elem in range(len(punti_sperimentali)) ]
-
-
-
 tempi = []
 for i in range(1,len(punti_sperimentali)):
   a, b = calcola_tempi(spline_approssimate[i], spline_approssimate[i-1], risultati['estremi_modulo'][i][0], risultati['estremi_modulo'][i-1][1])
@@ -136,26 +137,18 @@ for i in range(1,len(punti_sperimentali)):
   tempi.append(griglia_x[b])
   
 shift_factor = calcola_a(tempi) # questi sono ricavati sperimentalmente
-
 m, q = ricava_wlf(shift_factor, elenco_temperature)
 a = -1/q
 b = -a*m
-  
-for i in range(1,len(elenco_temperature)):
-  delta_T = elenco_temperature[i]-elenco_temperature[0]
-  log_a = -(a*delta_T)/(b+delta_T)
-  # print("teorico da parametri WLF: " + str(log_a))
-  nuovi_x = [elem + shift_factor[i-1] for elem in punti_sperimentali[i]['tempi']]
-  plt.plot(nuovi_x, punti_sperimentali[i]['moduli'], 'bo')
-  plt.hold('on')
-"""punti_teorici_x = [punti_sperimentali]
-punti_y = numpy.concatenate([punti_sperimentali[i]['tempi'] for i in range(len(punti_sperimentali))])
-for elem in range(len(punti_sperimentali)):
-"""  
 
-
+#
 # grafico sperimentale
+#
 
+plt.subplot(221)
+plt.title("Dati sperimentali")
+plt.xlabel(r"$log(t) \,\, [s]$")
+plt.ylabel(r"$log(J) \,\, [Pa^{-1}]$")
 for i in range(len(punti_sperimentali)):
   for elem in range(len(punti_sperimentali[i]['tempi'])):
     punto_x = punti_sperimentali[i]['tempi'][elem]
@@ -164,22 +157,41 @@ for i in range(len(punti_sperimentali)):
   eq = risultati['equations'][i]
   xmin = punti_sperimentali[i]['tempi'][0]
   xmax = punti_sperimentali[i]['tempi'][-1]
-  draw_spline(xmin, xmax, eq)
-    
-#for point in range(len()):
+  etichetta = str(punti_sperimentali[i]['temperatura']) + " °C"
+  draw_spline(xmin, xmax, eq, etichetta)
+#plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
   
+#
+# master curve 
+#
+for i in range(1,len(elenco_temperature)):
+  nuovi_x = [elem + shift_factor[i-1] for elem in punti_sperimentali[i]['tempi']]
+  
+  plt.subplot(223)
+  plt.title("Master curve (shift factors sperimentali)")
+  plt.xlabel(r"$log(t) \,\, [s]$")
+  plt.ylabel(r"$log(J) \,\, [Pa^{-1}]$")
+  plt.plot(nuovi_x, punti_sperimentali[i]['moduli'], 'bo')
+  plt.hold('on')
 
+  delta_T = elenco_temperature[i]-elenco_temperature[0]
+  log_a = -(a*delta_T)/(b+delta_T)
+  x_teorici = [elem + log_a for elem in punti_sperimentali[i]['tempi']]
 
+  plt.subplot(224)
+  plt.title("Master curve (shift factors da WLF)")
+  plt.xlabel(r"$log(t) \,\, [s]$")
+  plt.ylabel(r"$log(J) \,\, [Pa^{-1}]$")
+  plt.plot(x_teorici, punti_sperimentali[i]['moduli'])
+  plt.hold('on')
 
-
-
-
-
-
-
-
-
-
-
-
+plt.tight_layout()
 plt.show()
+
+
+output_file = open('results.txt','w')
+output_file.write('Parametri WLF: A=' + str(a) + ', B=' + str(b) + "\n")
+output_file.write("shift factors sperimentali: \n")
+for elem in range(len(shift_factor)):
+  output_file.write(str(elenco_temperature[elem+1]) + " °C => " + str(shift_factor[elem])+ "\n")
+output_file.close()
