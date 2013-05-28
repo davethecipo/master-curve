@@ -114,16 +114,7 @@ def ricava_wlf(shift_factors, temperature):
   x_interp = numpy.linspace(x[0],x[-1],50)
   y_interp = m*x_interp+q
   
-  plt.subplot(222)
-  plt.title("Regressione lineare (WLF)")
-  plt.xlabel(r"$(T-T_{0})^{-1} \,\, [\degree C^{-1}]$")
-  plt.ylabel(r"$(log(a_{T}^{T_0}))^{-1} \,\, [s^{-1}]$")
-  plt.plot(x,y, 'bo')
-  plt.hold('on')
-  plt.plot(x_interp,y_interp)
-  plt.hold('on')
-  
-  return m, q
+  return m, q, [x, y, x_interp, y_interp]
 
 punti_sperimentali = sorted(open_from_csv(FILE), key=lambda t: t['temperatura']) # mette in ordine crescente di temperatura
 risultati = ottieni_informazioni_globali(punti_sperimentali)
@@ -137,7 +128,7 @@ for i in range(1,len(punti_sperimentali)):
   tempi.append(griglia_x[b])
   
 shift_factor = calcola_a(tempi) # questi sono ricavati sperimentalmente
-m, q = ricava_wlf(shift_factor, elenco_temperature)
+m, q, dati_wlf = ricava_wlf(shift_factor, elenco_temperature)
 a = -1/q
 b = -a*m
 
@@ -161,6 +152,15 @@ pprint(griglia_x)
 pprint(indice_modulo)
 modulo_shiftato = numpy.power(10,y_interpolati_sper[indice_modulo])
 
+f1 = plt.figure()
+plt.title("Master curve")
+plt.xlabel(r"$log(t) \,\, [s]$")
+plt.ylabel(r"$log(J) \,\, [Pa^{-1}]$")
+plt.plot(x_totali, y_interpolati_sper)
+plt.hold('on')
+
+f2 = plt.figure()
+
 
 #
 # grafico sperimentale
@@ -181,6 +181,19 @@ for i in range(len(punti_sperimentali)):
   etichetta = str(punti_sperimentali[i]['temperatura']) + " °C"
   draw_spline(xmin, xmax, eq, etichetta)
 #plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+
+# WLF
+plt.subplot(222)
+plt.title("Regressione lineare (WLF)")
+plt.xlabel(r"$(T-T_{0})^{-1} \,\, [\degree C^{-1}]$")
+plt.ylabel(r"$(log(a_{T}^{T_0}))^{-1} \,\, [s^{-1}]$")
+plt.plot(dati_wlf[0], dati_wlf[1], 'bo')
+plt.hold('on')
+plt.plot(dati_wlf[2],dati_wlf[3])
+plt.hold('on')
+
+
+
   
 #
 # master curve 
