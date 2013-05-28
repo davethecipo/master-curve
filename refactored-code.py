@@ -141,6 +141,27 @@ m, q = ricava_wlf(shift_factor, elenco_temperature)
 a = -1/q
 b = -a*m
 
+
+tempi_totali = [punti_sperimentali[0]['tempi']]
+for i in range(1,len(elenco_temperature)):
+  tempi_totali.append([elem + shift_factor[i-1] for elem in punti_sperimentali[i]['tempi']])
+
+"""penso che si possa evitare di usare sort, ci sto pensando"""
+tempi_totali = numpy.sort(numpy.concatenate(tempi_totali))
+moduli_totali = numpy.sort(numpy.concatenate([punti_sperimentali[elem]['moduli'] for elem in range(len(punti_sperimentali))]))
+
+eq_master_sperimentale = UnivariateSpline(tempi_totali, moduli_totali, k=1, s=0)
+x_totali = numpy.linspace(tempi_totali[0], tempi_totali[-1], CALC_STEPS)
+y_interpolati_sper = eq_master_sperimentale(x_totali)
+required_time = numpy.log10(315360000) # 10 anni in secondi
+pprint(required_time)
+pprint(tempi_totali[-1])
+indice_modulo = bisect(x_totali, required_time)
+pprint(griglia_x)
+pprint(indice_modulo)
+modulo_shiftato = numpy.power(10,y_interpolati_sper[indice_modulo])
+
+
 #
 # grafico sperimentale
 #
@@ -191,6 +212,7 @@ plt.show()
 
 output_file = open('results.txt','w')
 output_file.write('Parametri WLF: A=' + str(a) + ', B=' + str(b) + "\n")
+output_file.write('Modulo [1/Pa] dopo 10 anni: ' + str(modulo_shiftato) + "\n" )
 output_file.write("shift factors sperimentali: \n")
 for elem in range(len(shift_factor)):
   output_file.write(str(elenco_temperature[elem+1]) + " °C => " + str(shift_factor[elem])+ "\n")
