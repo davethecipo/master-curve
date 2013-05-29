@@ -1,0 +1,12 @@
+HOWTO
+
+A inizio file le righe da 10 a 14 definiscono i parametri del programma.
+
+FILE: il file contenente i dati sperimentali. Usare il percorso assoluto.
+
+CALC_STEPS: viene usato dalla funzione numpy.linspace e determina il numero di 
+valori di modulo interpolati.
+
+DRAW_STEPS: l'equivalente di CALC_STEPS ma relativo ai grafici. Si tenga conto
+che la generazione dei grafici è il collo di bottiglia dello script, è quindi
+bene tenere il valore basso.

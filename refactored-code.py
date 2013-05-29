@@ -9,8 +9,11 @@ from bisect import bisect
 
 FILE = '/home/davide/poli/2/2-semestre/polimeri/A/Cedevolezza-PS-es5.txt'
 CALC_STEPS = 5000
+DRAW_STEPS = 100
+REQUIRED_TIME = 315360000 # tempo in secondi al quale vogliamo un certo modulo
+OUTPUT_NAME = 'results.txt'
 
-def approssima(dato, steps=5000):
+def approssima(dato, steps=CALC_STEPS):
   """ Data una serie di punti sperimentali ad una certa temperatura, calcola 
       la spezzata che passa per i punti"""
   tempi = dato['tempi']
@@ -27,7 +30,7 @@ def draw_points(x,y):
   plt.plot(x,y, 'bo')
   plt.hold('on')
   
-def draw_spline(x_left, x_right, spline_equation, in_label, draw_steps=100):  
+def draw_spline(x_left, x_right, spline_equation, in_label, draw_steps=DRAW_STEPS):  
   valori_x_disegno = numpy.linspace(x_left, x_right, draw_steps)
   y_interpolati_disegno = spline_equation(valori_x_disegno)
   plt.plot(valori_x_disegno, y_interpolati_disegno, label=in_label)
@@ -119,8 +122,8 @@ def ricava_wlf(shift_factors, temperature):
 punti_sperimentali = sorted(open_from_csv(FILE), key=lambda t: t['temperatura']) # mette in ordine crescente di temperatura
 risultati = ottieni_informazioni_globali(punti_sperimentali)
 griglia_x = numpy.linspace(risultati['tempo_min'], risultati['tempo_max'], CALC_STEPS)
-spline_approssimate = [ elem(griglia_x) for elem in risultati['equations'] ]
-elenco_temperature = [punti_sperimentali[elem]['temperatura'] for elem in range(len(punti_sperimentali)) ]
+spline_approssimate = [ elem(griglia_x) for elem in risultati['equations'] ] # tutte le equazioni della spline
+elenco_temperature = [punti_sperimentali[elem]['temperatura'] for elem in range(len(punti_sperimentali)) ] # elenco di temperature
 tempi = []
 for i in range(1,len(punti_sperimentali)):
   a, b = calcola_tempi(spline_approssimate[i], spline_approssimate[i-1], risultati['estremi_modulo'][i][0], risultati['estremi_modulo'][i-1][1])
@@ -144,15 +147,14 @@ moduli_totali = numpy.sort(numpy.concatenate([punti_sperimentali[elem]['moduli']
 eq_master_sperimentale = UnivariateSpline(tempi_totali, moduli_totali, k=1, s=0)
 x_totali = numpy.linspace(tempi_totali[0], tempi_totali[-1], CALC_STEPS)
 y_interpolati_sper = eq_master_sperimentale(x_totali)
-required_time = numpy.log10(315360000) # 10 anni in secondi
-pprint(required_time)
-pprint(tempi_totali[-1])
+required_time = numpy.log10(REQUIRED_TIME) # 10 anni in secondi
 indice_modulo = bisect(x_totali, required_time)
-pprint(griglia_x)
-pprint(indice_modulo)
 modulo_shiftato = numpy.power(10,y_interpolati_sper[indice_modulo])
 
-f1 = plt.figure()
+# Inizia il codice per i grafici
+
+
+f1 = plt.figure() 
 plt.title("Master curve")
 plt.xlabel(r"$log(t) \,\, [s]$")
 plt.ylabel(r"$log(J) \,\, [Pa^{-1}]$")
@@ -223,7 +225,7 @@ plt.tight_layout()
 plt.show()
 
 
-output_file = open('results.txt','w')
+output_file = open(OUTPUT_NAME,'w')
 output_file.write('Parametri WLF: A=' + str(a) + ', B=' + str(b) + "\n")
 output_file.write('Modulo [1/Pa] dopo 10 anni: ' + str(modulo_shiftato) + "\n" )
 output_file.write("shift factors sperimentali: \n")
