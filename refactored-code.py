@@ -52,8 +52,8 @@ def open_from_csv(in_file):
       dato = raw[i+1].split('\t')[l+1].replace('\n','')
       if dato is not "":
         modulo = float(dato)
-        dati[l]['tempi'].append(numpy.log10(tempo))
-        dati[l]['moduli'].append(numpy.log10(modulo))
+        dati[l]['tempi'].append(numpy.log(tempo))
+        dati[l]['moduli'].append(numpy.log(modulo))
   
   return dati
 
@@ -147,9 +147,9 @@ moduli_totali = numpy.sort(numpy.concatenate([punti_sperimentali[elem]['moduli']
 eq_master_sperimentale = UnivariateSpline(tempi_totali, moduli_totali, k=1, s=0)
 x_totali = numpy.linspace(tempi_totali[0], tempi_totali[-1], CALC_STEPS)
 y_interpolati_sper = eq_master_sperimentale(x_totali)
-required_time = numpy.log10(REQUIRED_TIME) # 10 anni in secondi
+required_time = numpy.log(REQUIRED_TIME) # 10 anni in secondi
 indice_modulo = bisect(x_totali, required_time)
-modulo_shiftato = numpy.power(10,y_interpolati_sper[indice_modulo])
+modulo_shiftato = numpy.exp(y_interpolati_sper[indice_modulo])
 
 # Inizia il codice per i grafici
 
