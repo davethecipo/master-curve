@@ -15,6 +15,13 @@ REQUIRED_TIME = 315360000 # tempo in secondi al quale vogliamo un certo modulo
 OUTPUT_NAME = 'results.txt'
 ENTALPIA = 51500*4.184 # J/mol
 R = 8.314 # J/mol K
+nu = 0.3 # modulo di Poisson
+f = 0.01 # deflessione massima in metri
+L = 0.3 # lunghezza della mensola in metri
+P = 2940 # pressione dovuta al carico esterno in Pa
+
+
+
 def approssima(dato, steps=CALC_STEPS):
   """ Data una serie di punti sperimentali ad una certa temperatura, calcola 
       la spezzata che passa per i punti"""
@@ -108,8 +115,6 @@ def calcola_a(tempi):
 
 def arrhenius(ent, T,T_rif):
   return numpy.exp(ent/R*(1/T-1/T_rif))
-
-  
   
 def ricava_wlf(shift_factors, temperature):
   """ Dati i valori sperimentali di shift factor e temperature, ritorna
@@ -153,40 +158,22 @@ moduli_totali = numpy.sort(numpy.concatenate([punti_sperimentali[elem]['moduli']
 eq_master_sperimentale = UnivariateSpline(tempi_totali, moduli_totali, k=1, s=0)
 x_totali = numpy.linspace(tempi_totali[0], tempi_totali[-1], CALC_STEPS)
 y_interpolati_sper = eq_master_sperimentale(x_totali)
-pprint(numpy.log10(arrhenius(ENTALPIA, 25+273, 97+273)))
-pprint( numpy.log10(REQUIRED_TIME))
 
 required_time = numpy.log10(REQUIRED_TIME)-numpy.log10(arrhenius(ENTALPIA, 25+273, 97+273)) # 10 anni corretti da shift factor
-print(required_time)
 indice_modulo = bisect(x_totali, required_time)
-pprint(indice_modulo)
 modulo_shiftato = special.exp10(y_interpolati_sper[indice_modulo])
-pprint(y_interpolati_sper[indice_modulo])
-
-nu = 0.3
-f = 0.01 # m
-L = 0.3 # m
-P = 2940 # Pa
-
-
-
-spessore = special.cbrt((3*L**4*P*modulo_shiftato)/(4*f*(1+nu)))
-pprint(spessore) # m
+spessore = special.cbrt((3*L**4*P*modulo_shiftato)/(4*f*(1+nu))) # metri
 
 # Inizia il codice per i grafici
-
-
-
 
 f1 = plt.figure() 
 plt.title("Master curve")
 plt.xlabel(r"$log(t) \,\, [s]$")
 plt.ylabel(r"$log(J) \,\, [Pa^{-1}]$")
-plt.plot(x_totali, y_interpolati_sper, 'bo')
+plt.plot(x_totali, y_interpolati_sper)
 plt.hold('on')
 
 f2 = plt.figure()
-
 
 #
 # grafico sperimentale
@@ -252,6 +239,7 @@ plt.show()
 output_file = open(OUTPUT_NAME,'w')
 output_file.write('Parametri WLF: A=' + str(a) + ', B=' + str(b) + "\n")
 output_file.write('Modulo [1/Pa] dopo 10 anni: ' + str(modulo_shiftato) + "\n" )
+output_file.write('Spessore della mensola: ' + str(spessore) + " m \n")
 output_file.write("shift factors sperimentali: \n")
 for elem in range(len(shift_factor)):
   output_file.write(str(elenco_temperature[elem+1]) + " °C => " + str(shift_factor[elem])+ "\n")
