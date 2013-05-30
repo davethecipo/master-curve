@@ -3,6 +3,7 @@
 
 import matplotlib.pyplot as plt
 from scipy.interpolate import UnivariateSpline
+from scipy import special
 import numpy
 from pprint import pprint
 from bisect import bisect
@@ -12,7 +13,8 @@ CALC_STEPS = 5000
 DRAW_STEPS = 100
 REQUIRED_TIME = 315360000 # tempo in secondi al quale vogliamo un certo modulo
 OUTPUT_NAME = 'results.txt'
-
+ENTALPIA = 51500*4.184 # J/mol
+R = 8.314 # J/mol K
 def approssima(dato, steps=CALC_STEPS):
   """ Data una serie di punti sperimentali ad una certa temperatura, calcola 
       la spezzata che passa per i punti"""
@@ -52,8 +54,8 @@ def open_from_csv(in_file):
       dato = raw[i+1].split('\t')[l+1].replace('\n','')
       if dato is not "":
         modulo = float(dato)
-        dati[l]['tempi'].append(numpy.log(tempo))
-        dati[l]['moduli'].append(numpy.log(modulo))
+        dati[l]['tempi'].append(numpy.log10(tempo))
+        dati[l]['moduli'].append(numpy.log10(modulo))
   
   return dati
 
@@ -103,6 +105,10 @@ def calcola_a(tempi):
     counter += 1
     a.append(a_t)
   return a
+
+def arrhenius(ent, T,T_rif):
+  return numpy.exp(ent/R*(1/T-1/T_rif))
+
   
   
 def ricava_wlf(shift_factors, temperature):
@@ -147,18 +153,36 @@ moduli_totali = numpy.sort(numpy.concatenate([punti_sperimentali[elem]['moduli']
 eq_master_sperimentale = UnivariateSpline(tempi_totali, moduli_totali, k=1, s=0)
 x_totali = numpy.linspace(tempi_totali[0], tempi_totali[-1], CALC_STEPS)
 y_interpolati_sper = eq_master_sperimentale(x_totali)
-required_time = numpy.log(REQUIRED_TIME) # 10 anni in secondi
+pprint(numpy.log10(arrhenius(ENTALPIA, 25+273, 97+273)))
+pprint( numpy.log10(REQUIRED_TIME))
+
+required_time = numpy.log10(REQUIRED_TIME)-numpy.log10(arrhenius(ENTALPIA, 25+273, 97+273)) # 10 anni corretti da shift factor
+print(required_time)
 indice_modulo = bisect(x_totali, required_time)
-modulo_shiftato = numpy.exp(y_interpolati_sper[indice_modulo])
+pprint(indice_modulo)
+modulo_shiftato = special.exp10(y_interpolati_sper[indice_modulo])
+pprint(y_interpolati_sper[indice_modulo])
+
+nu = 0.3
+f = 0.01 # m
+L = 0.3 # m
+P = 2940 # Pa
+
+
+
+spessore = special.cbrt((3*L**4*P*modulo_shiftato)/(4*f*(1+nu)))
+pprint(spessore) # m
 
 # Inizia il codice per i grafici
+
+
 
 
 f1 = plt.figure() 
 plt.title("Master curve")
 plt.xlabel(r"$log(t) \,\, [s]$")
 plt.ylabel(r"$log(J) \,\, [Pa^{-1}]$")
-plt.plot(x_totali, y_interpolati_sper)
+plt.plot(x_totali, y_interpolati_sper, 'bo')
 plt.hold('on')
 
 f2 = plt.figure()
